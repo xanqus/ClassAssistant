@@ -1,0 +1,93 @@
+  
+from bluetooth import *
+import pymysql
+import os
+import sys
+import urllib.request
+import pygame
+
+recv_data = ""
+
+target_name = "BluetoothR"
+target_address = "98:D3:31:FD:5E:E5"
+port = 1
+
+nearby_devices = discover_devices()
+
+for bdaddr in nearby_devices:
+    print(lookup_name(bdaddr))
+    if target_name == lookup_name( bdaddr ):
+        target_address = bdaddr
+        break
+
+try:
+    sock=BluetoothSocket( RFCOMM )
+    sock.connect((target_address, port))
+
+    conn = pymysql.connect(host='127.0.0.1', port=3306, user='xanqus', passwd='game9803@A', db='ClassAssistant', autocommit=True)
+    cur = conn.cursor()
+    
+
+    while True:
+        try:
+            recv_data = recv_data + sock.recv(1024).decode('utf-8')
+            print(recv_data)
+            if recv_data.endswith('#'):
+                recv_data = recv_data.replace("#","")
+                processed_data = recv_data.split(',')
+                sql = "INSERT INTO datas(L_flex1,L_flex2,L_flex3,L_flex4,L_flex5,L_GyX,L_GyY,L_GyZ,L_AcX,L_AcY,L_AcZ) VALUES('"+ processed_data[0] +"','"+processed_data[1]+"','"+processed_data[2]+"','"+processed_data[3]+"','"+processed_data[4]+"','"+processed_data[5]+"','"+processed_data[6]+"','"+processed_data[7]+"','"+processed_data[8]+"','"+processed_data[9]+"','"+processed_data[10]+"')"
+                #print(sql)
+                #print(sql)
+                cur.execute(sql)               
+
+                if int(processed_data[0]) < 400:
+                    print("1번 수화가 출력됩니다.")
+                    client_id = "client_id"
+                    client_secret = "client_secret"
+                    encText = urllib.parse.quote("1번수화가 출력됩니다.")
+                    data = "speaker=mijin&speed=0&text=" + encText;
+                    url = "https://naveropenapi.apigw.ntruss.com/voice/v1/tts"
+                    request = urllib.request.Request(url)
+                    request.add_header("X-NCP-APIGW-API-KEY-ID",client_id)
+                    request.add_header("X-NCP-APIGW-API-KEY",client_secret)
+                    response = urllib.request.urlopen(request, data=data.encode('utf-8'))
+                    rescode = response.getcode()
+                    if(rescode==200):
+                        print("TTS mp3 저장")
+                        response_body = response.read()
+                        with open('helloKO.mp3', 'wb') as f:
+                            f.write(response_body)
+                    else:
+                        print("Error Code:" + rescode)
+
+
+                    music_file = "helloKO.mp3"   # mp3 or mid file
+                    freq = 16000    # sampling rate, 44100(CD), 16000(Naver TTS), 24000(google TTS)
+                    bitsize = -16   # signed 16 bit. support 8,-8,16,-16
+                    channels = 1    # 1 is mono, 2 is stereo
+                    bufferz = 2048   # number of samples (experiment to get right sound)
+
+                    pygame.mixer.init(freq, bitsize, channels, bufferz)
+                    pygame.mixer.music.load(music_file)
+                    pygame.mixer.music.play()
+                    clock = pygame.time.Clock()
+                    while pygame.mixer.music.get_busy():
+                        clock.tick(30)
+                    pygame.mixer.quit()
+
+
+                recv_data = ""
+                processed_data = ""
+            else:
+                print("no")
+
+
+            
+        except KeyboardInterrupt:
+            print("disconnected")
+            sock.close()
+            print("all done")
+
+except btcommon.BluetoothError as err:
+    print('An error occurred : %s ' % err)
+    pass
