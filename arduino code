@@ -1,0 +1,105 @@
+#include <SoftwareSerial.h>
+#include <Wire.h>
+// SoftwareSerial(RX, TX) 형식으로 블루투스 모듈과 교차하여 연결
+SoftwareSerial BTSerial(11, 12);
+const int MPU=0x68;
+int flexpin5 = 6;
+int flexpin4 = 3;
+int flexpin3 = 2;
+int flexpin2 = 1;
+int flexpin1 = 0;
+int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+long time;
+String aa = "";
+void setup(){
+  Wire.begin(0);
+  Wire.beginTransmission(MPU);
+  Wire.write(0x6B);
+  Wire.write(0);
+  Wire.endTransmission(true);
+  Serial.begin(9600); // 컴퓨터와의 시리얼 통신 초기화
+  BTSerial.begin(9600); // 블루투스 모듈 초기화
+}
+void loop(){
+  Wire.beginTransmission(MPU);
+  Wire.write(0x3B);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU,14,true);
+  AcX=Wire.read()<<8|Wire.read();  // 0x3B (ACCEL_XOUT_H) & 0x3C (ACCEL_XOUT_L)    
+  AcY=Wire.read()<<8|Wire.read();  // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
+  AcZ=Wire.read()<<8|Wire.read();  // 0x3F (ACCEL_ZOUT_H) & 0x40 (ACCEL_ZOUT_L)
+  Tmp=Wire.read()<<8|Wire.read();  // 0x41 (TEMP_OUT_H) & 0x42 (TEMP_OUT_L)
+  GyX=Wire.read()<<8|Wire.read();  // 0x43 (GYRO_XOUT_H) & 0x44 (GYRO_XOUT_L)
+  GyY=Wire.read()<<8|Wire.read();  // 0x45 (GYRO_YOUT_H) & 0x46 (GYRO_YOUT_L)
+  GyZ=Wire.read()<<8|Wire.read();  // 0x47 (GYRO_ZOUT_H) & 0x48 (GYRO_ZOUT_L)
+
+  
+  int flexVal5 = map(analogRead(flexpin5), 839, 1024, 0, 300);
+  int flexVal4 = map(analogRead(flexpin4), 797, 1024, 0, 300);
+  int flexVal3 = map(analogRead(flexpin3), 817, 1024, 0, 300);
+  int flexVal2 = map(analogRead(flexpin2), 850, 1024, 0, 300);
+  int flexVal1 = map(analogRead(flexpin1), 815, 1024, 0, 300);
+  
+  String str_flexVal5 = String(flexVal5);
+  String str_flexVal4 = String(flexVal4);
+  String str_flexVal3 = String(flexVal3);
+  String str_flexVal2 = String(flexVal2);
+  String str_flexVal1 = String(flexVal1);
+  String str_AcX = String(AcX);
+  String str_AcY = String(AcY);
+  String str_AcZ = String(AcZ);
+  String str_GyX = String(GyX);
+  String str_GyY = String(GyY);
+  String str_GyZ = String(GyZ);
+
+  
+  // 블루투스 모듈 → 아두이노 → 시리얼 모니터
+  if(BTSerial.available()){
+    Serial.write(BTSerial.read());
+  } 
+  // 시리얼 모니터 → 아두이노 → 블루투스 모듈
+  if (Serial.available()){
+    BTSerial.write(Serial.read());
+  }
+  if(millis()-time>1000){ 
+    Serial.print("sensor5: \r"); 
+    Serial.println(flexVal5);
+    Serial.print("sensor4: \r");
+    Serial.println(flexVal4);
+    Serial.print("sensor3: \r");
+    Serial.println(flexVal3);
+    Serial.print("sensor2: ");
+    Serial.println(flexVal2); 
+    Serial.print("sensor1: ");
+    Serial.println(flexVal1);
+    Serial.print("AcX = "); Serial.print(AcX);
+    Serial.print(" | AcY = "); Serial.print(AcY);
+    Serial.print(" | AcZ = "); Serial.print(AcZ);
+    Serial.print(" | GyX = "); Serial.print(GyX);
+    Serial.print(" | GyY = "); Serial.print(GyY);
+    Serial.print(" | GyZ = "); Serial.println(GyZ);
+
+    BTSerial.print(str_flexVal5);
+    BTSerial.print(",");
+    BTSerial.print(str_flexVal4);
+    BTSerial.print(",");
+    BTSerial.print(str_flexVal3);
+    BTSerial.print(",");
+    BTSerial.print(str_flexVal2);
+    BTSerial.print(",");
+    BTSerial.print(str_flexVal1);
+    BTSerial.print(",");
+    BTSerial.print(str_AcX);
+    BTSerial.print(",");
+    BTSerial.print(str_AcY);
+    BTSerial.print(",");
+    BTSerial.print(str_AcZ);
+    BTSerial.print(",");
+    BTSerial.print(str_GyX);
+    BTSerial.print(",");
+    BTSerial.print(str_GyY);
+    BTSerial.print(",");
+    BTSerial.print(str_GyZ+"#");
+    delay(500);
+  }  
+}
